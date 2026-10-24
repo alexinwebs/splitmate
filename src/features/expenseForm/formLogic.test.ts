@@ -122,10 +122,16 @@ describe('evaluateForm: exact split', () => {
   });
 
   it('shows how much is left while the amounts are incomplete', () => {
-    const result = evaluateForm(base({ me: '60', a: '30' }), group);
+    const result = evaluateForm(base({ me: '60' }), group);
     expect(result.isValid).toBe(false);
-    expect(result.progress).toEqual({ kind: 'amount', allocatedPaise: 9000, remainingPaise: 1000 });
+    expect(result.progress).toEqual({ kind: 'amount', allocatedPaise: 6000, remainingPaise: 4000 });
     expect(result.errors.split).toBeDefined();
+  });
+
+  it('completes the last empty person with the remainder (see autoFill.test.ts)', () => {
+    const result = evaluateForm(base({ me: '60', a: '30' }), group);
+    expect(result.isValid).toBe(true);
+    expect(result.preview?.map((s) => s.amountPaise)).toEqual([6000, 3000, 1000]);
   });
 
   it('shows an overshoot as a negative remainder', () => {
@@ -152,9 +158,15 @@ describe('evaluateForm: percentage split', () => {
   });
 
   it('shows what is left of 100%', () => {
-    const result = evaluateForm(base({ me: '50', a: '30' }), group);
-    expect(result.progress).toEqual({ kind: 'percent', allocatedBps: 8000, remainingBps: 2000 });
+    const result = evaluateForm(base({ me: '50' }), group);
+    expect(result.progress).toEqual({ kind: 'percent', allocatedBps: 5000, remainingBps: 5000 });
     expect(result.isValid).toBe(false);
+  });
+
+  it('completes the last empty person with the rest of 100%', () => {
+    const result = evaluateForm(base({ me: '50', a: '30' }), group);
+    expect(result.isValid).toBe(true);
+    expect(result.preview?.map((s) => s.amountPaise)).toEqual([5001, 3000, 2000]);
   });
 
   it('rejects unreadable or out-of-range percentages', () => {

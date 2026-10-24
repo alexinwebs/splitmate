@@ -13,6 +13,8 @@ type Props = {
   onChangeValue: (text: string) => void;
   /** This person's computed share, e.g. "₹100", when the split is valid. */
   shareLabel: string | null;
+  /** The remainder suggested for this person's empty field (exact and percent). */
+  autoText?: string;
   error?: string;
   showDivider: boolean;
 };
@@ -25,9 +27,11 @@ export function ParticipantRow({
   value,
   onChangeValue,
   shareLabel,
+  autoText,
   error,
   showDivider,
 }: Props) {
+  const placeholder = autoText ?? (method === 'shares' ? '1' : '0');
   return (
     <View style={[styles.wrap, showDivider ? styles.divider : null]}>
       <View style={styles.row}>
@@ -63,13 +67,13 @@ export function ParticipantRow({
                 value={value}
                 onChangeText={onChangeValue}
                 keyboardType={method === 'shares' ? 'number-pad' : 'decimal-pad'}
-                placeholder={method === 'shares' ? '1' : '0'}
-                placeholderTextColor={colors.textMuted}
+                placeholder={placeholder}
+                placeholderTextColor={autoText ? colors.link : colors.textMuted}
                 selectionColor={colors.fab}
                 accessibilityLabel={`${name} ${
                   method === 'exact' ? 'amount' : method === 'percent' ? 'percentage' : 'shares'
-                }`}
-                style={styles.input}
+                }${autoText ? `, automatically ${autoText}` : ''}`}
+                style={[styles.input, autoText && value.length === 0 ? styles.inputAuto : null]}
               />
               {method === 'percent' ? (
                 <AppText variant="bodyStrong" color={colors.textSecondary}>
@@ -77,6 +81,11 @@ export function ParticipantRow({
                 </AppText>
               ) : null}
             </ClaySurface>
+            {autoText ? (
+              <AppText variant="small" color={colors.link} style={styles.shareLabel}>
+                auto-filled · tap to change
+              </AppText>
+            ) : null}
             {method !== 'exact' && shareLabel ? (
               <AppText variant="small" style={styles.shareLabel}>
                 {shareLabel}
@@ -120,6 +129,7 @@ const styles = StyleSheet.create({
     color: colors.textHeading,
     paddingVertical: 6,
   },
+  inputAuto: { fontFamily: fonts.bold },
   shareLabel: { marginRight: 4 },
   error: { marginTop: 4, marginLeft: 36 },
 });

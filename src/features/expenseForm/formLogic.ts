@@ -47,7 +47,12 @@ export type FormEvaluation = {
   preview: ShareLine[] | null;
   /** Running total for exact/percent splits: how much is still unassigned. */
   progress: FormProgress | null;
+  /** The one person whose empty field is being completed with the remainder, if any. */
+  autoFill: AutoFill;
 };
+
+/** A suggested value for the single empty field of an exact or percent split. */
+export type AutoFill = { memberId: string; text: string } | null;
 
 /** Plain decimal text for an integer count of hundredths: 12050 -> "120.5", 5000 -> "50". */
 export function toDecimalText(hundredths: number): string {
@@ -139,6 +144,40 @@ export function formStateFromExpense(expense: Expense): FormState | null {
   return state;
 }
 
+/**
+ * For exact and percent splits: when exactly one chosen person has an empty
+ * field and everyone else's is a valid number, that person is suggested the
+ * remainder (what is left of the total, or of 100%). The suggestion is derived,
+ * never stored, so it follows the other fields as they change and disappears
+ * as soon as the person types their own value (even 0).
+ */
+export function computeAutoFill(state: FormState, group: Group): AutoFill {
+  if (state.method !== 'exact' && state.method !== 'percent') return null;
+  const ids = group.memberIds.filter((id) => state.participantIds.includes(id));
+  const texts = state.method === 'exact' ? state.exactText : state.percentText;
+  const empty = ids.filter((id) => (texts[id] ?? '').trim().length === 0);
+  if (empty.length !== 1) return null;
+
+  let allocated = 0;
+  for (const id of ids) {
+    if (id === empty[0]) continue;
+    const text = (texts[id] ?? '').trim();
+    const value = state.method === 'exact' ? parseMoneyToPaise(text) : parsePercentToBps(text);
+    if (value === null) return null;
+    allocated += value;
+  }
+
+  let remaining: number;
+  if (state.method === 'exact') {
+    const total = parseMoneyToPaise(state.amountText.trim());
+    if (total === null || total <= 0) return null;
+    remaining = total - allocated;
+  } else {
+    remaining = 10000 - allocated;
+  }
+  return remaining > 0 ? { memberId: empty[0], text: toDecimalText(remaining) } : null;
+}
+
 const PREVIEW_TIMESTAMP = '2000-01-01T00:00:00.000Z';
 
 /**
@@ -170,6 +209,7 @@ export function evaluateForm(state: FormState, group: Group): FormEvaluation {
   const participantIds = group.memberIds.filter((id) => state.participantIds.includes(id));
   if (participantIds.length === 0) errors.participants = 'Choose at least one person.';
 
+  const autoFill = computeAutoFill(state, group);
   let split: Split | null = null;
   let progress: FormProgress | null = null;
 
@@ -181,7 +221,8 @@ export function evaluateForm(state: FormState, group: Group): FormEvaluation {
       let allocated = 0;
       let clean = true;
       for (const id of participantIds) {
-        const text = (state.exactText[id] ?? '').trim();
+        const typed = (state.exactText[id] ?? '').trim();
+        const text = typed.length === 0 && autoFill?.memberId === id ? autoFill.text : typed;
         if (text.length === 0) {
           entries.push({ memberId: id, value: 0 });
           continue;
@@ -204,7 +245,8 @@ export function evaluateForm(state: FormState, group: Group): FormEvaluation {
       let allocated = 0;
       let clean = true;
       for (const id of participantIds) {
-        const text = (state.percentText[id] ?? '').trim();
+        const typed = (state.percentText[id] ?? '').trim();
+        const text = typed.length === 0 && autoFill?.memberId === id ? autoFill.text : typed;
         if (text.length === 0) {
           entries.push({ memberId: id, value: 0 });
           continue;
@@ -272,7 +314,7 @@ export function evaluateForm(state: FormState, group: Group): FormEvaluation {
     else errors.split = built.error.message;
   }
 
-  return { draft, isValid: draft !== null, errors, preview, progress };
+  return { draft, isValid: draft !== null, errors, preview, progress, autoFill };
 }
 
 export const QUICK_DATES = {

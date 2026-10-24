@@ -114,7 +114,7 @@ function FormBody({ mode, expenseId, groups, people, meId, initialState, header 
 
   const group = groups.find((g) => g.id === state.groupId) ?? groups[0];
   const evaluation = useMemo(() => evaluateForm(state, group), [state, group]);
-  const { errors, progress, preview } = evaluation;
+  const { errors, progress, preview, autoFill } = evaluation;
 
   const patch = (changes: Partial<FormState>) => setState((s) => ({ ...s, ...changes }));
   const nameOf = (id: string): string => people.find((p) => p.id === id)?.name ?? 'Unknown';
@@ -319,6 +319,7 @@ function FormBody({ mode, expenseId, groups, people, meId, initialState, header 
               value={textFor(id)}
               onChangeValue={(text) => setTextFor(id, text)}
               shareLabel={shareLabelFor(id)}
+              autoText={autoFill?.memberId === id ? autoFill.text : undefined}
               error={showErrors ? errors.members[id] : undefined}
               showDivider={i < group.memberIds.length - 1}
             />
@@ -343,6 +344,11 @@ function FormBody({ mode, expenseId, groups, people, meId, initialState, header 
         {state.method === 'equal' ? (
           <AppText variant="small" style={styles.hint}>
             Shares are calculated to the paisa. Any extra paise go to the first people in the list.
+          </AppText>
+        ) : null}
+        {state.method === 'exact' || state.method === 'percent' ? (
+          <AppText variant="small" style={styles.hint}>
+            Fill in everyone but one person and they’ll get what’s left. You can type over it.
           </AppText>
         ) : null}
         {state.method === 'shares' ? (
