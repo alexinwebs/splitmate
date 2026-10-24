@@ -1,39 +1,16 @@
-import { useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 
-import type { Bill, Group } from '../domain/types';
-import { CURRENT_USER, SAMPLE_BILLS, SAMPLE_GROUPS } from './sample';
+import type { Group } from '../domain/models';
+import { buildExpenseViews, type ExpenseView } from '../domain/views';
+import { createPersistentStorage } from '../storage/persistent';
+import { seedSampleData } from './seed';
+import { createAppStore, type AppState } from './storeCore';
 
-/**
- * Temporary in-memory store (Phase 2). Screens only use the hooks and
- * functions exported here, so Phase 3 can replace the internals with SQLite.
- */
-type State = { readonly groups: Group[]; readonly bills: Bill[] };
+/** The app-wide data store, persisted on the device. */
+export const appStore = createAppStore({ storage: createPersistentStorage() });
 
-let state: State = {
-  groups: SAMPLE_GROUPS,
-  bills: [...SAMPLE_BILLS].sort((a, b) => b.date.localeCompare(a.date)),
-};
-
-const listeners = new Set<() => void>();
-
-function setState(next: State): void {
-  state = next;
-  listeners.forEach((listener) => listener());
-}
-
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function getSnapshot(): State {
-  return state;
-}
-
-export function useAppState(): State {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+export function useAppState(): AppState {
+  return useSyncExternalStore(appStore.subscribe, appStore.getState, appStore.getState);
 }
 
 export function useGroup(id?: string): Group | undefined {
@@ -41,28 +18,19 @@ export function useGroup(id?: string): Group | undefined {
   return groups.find((g) => g.id === id);
 }
 
-export function useBill(id?: string): Bill | undefined {
-  const { bills } = useAppState();
-  return bills.find((b) => b.id === id);
+export function useExpenseViews(): ExpenseView[] {
+  const { expenses, groups, people, me } = useAppState();
+  return useMemo(
+    () => buildExpenseViews(expenses, groups, people, me.id),
+    [expenses, groups, people, me.id],
+  );
 }
 
-export function createGroup(name: string, otherMembers: string[]): Group {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) {
-    throw new Error('Group name is required');
-  }
-  const group: Group = {
-    id: `g-${Date.now().toString(36)}`,
-    name: trimmed,
-    adminName: CURRENT_USER,
-    memberNames: [CURRENT_USER, ...otherMembers],
-    billsSplit: 0,
-    totalSettledPaise: 0,
-  };
-  setState({ ...state, groups: [group, ...state.groups] });
-  return group;
+export function useExpenseView(id?: string): ExpenseView | undefined {
+  const views = useExpenseViews();
+  return views.find((v) => v.expense.id === id);
 }
 
-export function removeGroup(id: string): void {
-  setState({ ...state, groups: state.groups.filter((g) => g.id !== id) });
+export function loadSampleData(): Promise<void> {
+  return seedSampleData(appStore);
 }

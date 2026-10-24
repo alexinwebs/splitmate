@@ -13,15 +13,14 @@ import {
   colors,
   radii,
 } from '../../design';
-import { CURRENT_USER } from '../../data/sample';
 import { SETTINGS_SECTIONS } from '../../data/settingsSections';
 import { useAppState } from '../../data/store';
 import { formatMoney } from '../../domain/money';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { bills, groups } = useAppState();
-  const totalSplitPaise = bills.reduce((sum, b) => sum + b.totalPaise, 0);
+  const { expenses, groups, me } = useAppState();
+  const totalSplitPaise = expenses.reduce((sum, e) => sum + e.totalPaise, 0);
 
   const openSection = (key: string) =>
     router.push({ pathname: '/settings/[section]', params: { section: key } });
@@ -36,12 +35,12 @@ export default function ProfileScreen() {
         tone={colors.panel}
         radius={radii.xl}
         onPress={() => openSection('personal')}
-        accessibilityLabel={`${CURRENT_USER}. Edit profile`}
+        accessibilityLabel={`${me.name}. Edit profile`}
         style={styles.header}
       >
-        <Avatar name={CURRENT_USER} size={84} />
+        <Avatar name={me.name} size={84} />
         <View style={styles.headerText}>
-          <AppText variant="title">{CURRENT_USER}</AppText>
+          <AppText variant="title">{me.name}</AppText>
           <AppText variant="caption">Local profile · stored on this device</AppText>
         </View>
         <Icon name="chevron-forward" size={22} />
@@ -50,9 +49,24 @@ export default function ProfileScreen() {
       <View style={styles.block}>
         <StatStrip
           items={[
-            { icon: 'document-text-outline', tone: 'lavender', value: String(bills.length), label: 'Total Bills' },
-            { icon: 'people-outline', tone: 'lavender', value: String(groups.length), label: 'Total Groups' },
-            { icon: 'cash-outline', tone: 'mint', value: formatMoney(totalSplitPaise), label: 'Total Split' },
+            {
+              icon: 'document-text-outline',
+              tone: 'lavender',
+              value: String(expenses.length),
+              label: 'Total Bills',
+            },
+            {
+              icon: 'people-outline',
+              tone: 'lavender',
+              value: String(groups.length),
+              label: 'Total Groups',
+            },
+            {
+              icon: 'cash-outline',
+              tone: 'mint',
+              value: formatMoney(totalSplitPaise),
+              label: 'Total Split',
+            },
           ]}
         />
       </View>

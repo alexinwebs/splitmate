@@ -10,8 +10,10 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
 
-import { colors } from '../design/tokens';
+import { AppText, ClayButton, ClaySurface, Screen, colors } from '../design';
+import { appStore, useAppState } from '../data/store';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,14 +25,36 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
   });
+  const state = useAppState();
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+    void appStore.init();
+  }, []);
 
-  if (!fontsLoaded && !fontError) return null;
+  const fontsSettled = fontsLoaded || fontError !== null;
+  const dataSettled = state.status === 'ready' || state.status === 'error';
+
+  useEffect(() => {
+    if (fontsSettled && dataSettled) {
+      void SplashScreen.hideAsync();
+    }
+  }, [fontsSettled, dataSettled]);
+
+  if (!fontsSettled || !dataSettled) return null;
+
+  if (state.status === 'error') {
+    return (
+      <Screen scroll={false} contentStyle={styles.errorWrap}>
+        <ClaySurface variant="panel" style={styles.errorCard}>
+          <AppText variant="headline">Couldn’t open your data</AppText>
+          <AppText variant="caption" style={styles.errorText}>
+            {state.error ?? 'Something went wrong while loading.'}
+          </AppText>
+          <ClayButton label="Try again" size="md" onPress={() => void appStore.init()} />
+        </ClaySurface>
+      </Screen>
+    );
+  }
 
   return (
     <>
@@ -48,3 +72,9 @@ export default function RootLayout() {
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  errorWrap: { justifyContent: 'center' },
+  errorCard: { padding: 20, gap: 12 },
+  errorText: { marginBottom: 4 },
+});

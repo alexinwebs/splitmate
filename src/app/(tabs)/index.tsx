@@ -16,8 +16,7 @@ import {
   layout,
   radii,
 } from '../../design';
-import { CURRENT_USER } from '../../data/sample';
-import { useAppState } from '../../data/store';
+import { loadSampleData, useAppState, useExpenseViews } from '../../data/store';
 
 const ACTIONS = [
   { key: 'scan', label: 'Scan Bill', icon: 'camera-outline', tone: 'yellow' },
@@ -57,10 +56,11 @@ function HeroArt() {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { bills } = useAppState();
+  const { groups, me } = useAppState();
+  const views = useExpenseViews();
   const { width } = useWindowDimensions();
   const tileSize = Math.floor((width - layout.screenPadding * 2 - 12 * 3) / 4);
-  const recent = bills.slice(0, 3);
+  const recent = views.slice(0, 3);
 
   const onAction = (key: (typeof ACTIONS)[number]['key']) => {
     switch (key) {
@@ -79,18 +79,31 @@ export default function HomeScreen() {
     }
   };
 
+  const onLoadSample = async () => {
+    try {
+      await loadSampleData();
+    } catch (error) {
+      notify('Could not load sample data', error instanceof Error ? error.message : undefined);
+    }
+  };
+
   return (
     <Screen tabBar contentStyle={styles.content}>
       <View style={styles.header}>
-        <Avatar name={CURRENT_USER} size={60} />
+        <Avatar name={me.name} size={60} />
         <View style={styles.hello}>
-          <AppText variant="title">Hello {CURRENT_USER}</AppText>
+          <AppText variant="title">Hello {me.name}</AppText>
           <AppText variant="subtitle">Let’s split smarter</AppText>
         </View>
         <ClaySurface
           variant="raised"
           radius={26}
-          onPress={() => notify('You’re all caught up', 'Notifications for settlements and reminders arrive in a later phase.')}
+          onPress={() =>
+            notify(
+              'You’re all caught up',
+              'Notifications for settlements and reminders arrive in a later phase.',
+            )
+          }
           accessibilityLabel="Notifications"
           style={styles.bell}
         >
@@ -127,7 +140,13 @@ export default function HomeScreen() {
             style={({ pressed }) => [styles.action, { width: tileSize }, pressed ? styles.pressed : null]}
           >
             <IconTile icon={a.icon} tone={a.tone} size={tileSize} elevated />
-            <AppText variant="caption" align="center" numberOfLines={1} adjustsFontSizeToFit style={styles.actionLabel}>
+            <AppText
+              variant="caption"
+              align="center"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              style={styles.actionLabel}
+            >
               {a.label}
             </AppText>
           </Pressable>
@@ -135,22 +154,38 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.recent}>
-        <SectionHeader title="Recent Expenses" actionLabel="See all" onAction={() => router.navigate('/history')} />
-        {recent.length === 0 ? (
+        <SectionHeader
+          title="Recent Expenses"
+          actionLabel="See all"
+          onAction={() => router.navigate('/history')}
+        />
+        {groups.length === 0 ? (
+          <EmptyState
+            icon="people-outline"
+            title="Welcome to SplitMate"
+            message="Create a group to start splitting bills, or load sample data to explore the app."
+            actionLabel="Create a group"
+            onAction={() => router.push('/group/new')}
+            secondaryLabel="Load sample data"
+            onSecondary={onLoadSample}
+          />
+        ) : recent.length === 0 ? (
           <EmptyState
             icon="receipt-outline"
             title="No expenses yet"
-            message="Scan a bill or add an expense to see it here."
-            actionLabel="Scan a bill"
-            onAction={() => router.push('/scan')}
+            message="Add an expense to see it here."
+            actionLabel="Add an expense"
+            onAction={() => router.push('/expense/new')}
           />
         ) : (
           <View style={styles.list}>
-            {recent.map((bill) => (
+            {recent.map((view) => (
               <ExpenseRow
-                key={bill.id}
-                bill={bill}
-                onPress={() => router.push({ pathname: '/bill/[id]', params: { id: bill.id } })}
+                key={view.expense.id}
+                view={view}
+                onPress={() =>
+                  router.push({ pathname: '/bill/[id]', params: { id: view.expense.id } })
+                }
               />
             ))}
           </View>

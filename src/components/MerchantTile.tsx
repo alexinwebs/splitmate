@@ -1,15 +1,18 @@
 import { IconTile, type IconName, type ToneName } from '../design';
-import type { BillCategory } from '../domain/types';
+import type { ExpenseCategory } from '../domain/models';
 
-const MAP: Record<BillCategory, { icon: IconName; tone: ToneName }> = {
+const MAP: Record<ExpenseCategory, { icon: IconName; tone: ToneName }> = {
   food: { icon: 'restaurant-outline', tone: 'peach' },
+  groceries: { icon: 'basket-outline', tone: 'mint' },
   shopping: { icon: 'bag-handle-outline', tone: 'blue' },
-  grocery: { icon: 'basket-outline', tone: 'mint' },
+  travel: { icon: 'car-outline', tone: 'yellow' },
+  entertainment: { icon: 'film-outline', tone: 'pink' },
+  bills: { icon: 'flash-outline', tone: 'lavender' },
   other: { icon: 'receipt-outline', tone: 'lavender' },
 };
 
 type Props = {
-  category: BillCategory;
+  category: ExpenseCategory;
   size?: number;
 };
 

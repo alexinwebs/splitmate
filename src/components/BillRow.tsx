@@ -3,42 +3,43 @@ import { StyleSheet, View } from 'react-native';
 import { AppText, AvatarStack, Chip, ClaySurface, Icon, colors, radii, tones } from '../design';
 import { formatDate } from '../domain/date';
 import { formatMoney } from '../domain/money';
-import type { Bill } from '../domain/types';
+import type { ExpenseView } from '../domain/views';
 import { MerchantTile } from './MerchantTile';
 
 type Props = {
-  bill: Bill;
+  view: ExpenseView;
   onPress: () => void;
 };
 
-/** Full bill row used on History. */
-export function BillRow({ bill, onPress }: Props) {
-  const settled = bill.status === 'settled';
+/** Full expense row used on History. */
+export function BillRow({ view, onPress }: Props) {
+  const { expense } = view;
+  const settled = view.status === 'settled';
   const statusLabel = settled ? 'Settled' : 'Pending';
   return (
     <ClaySurface
       variant="raised"
       radius={radii.lg}
       onPress={onPress}
-      accessibilityLabel={`${bill.title}, ${formatMoney(bill.totalPaise)}, ${statusLabel}, ${bill.youLine}`}
+      accessibilityLabel={`${expense.title}, ${formatMoney(expense.totalPaise)}, ${statusLabel}, ${view.youLine}`}
       style={styles.card}
     >
       <View style={styles.top}>
-        <MerchantTile category={bill.category} size={52} />
+        <MerchantTile category={expense.category} size={52} />
         <View style={styles.titleCol}>
           <AppText variant="bodyStrong" numberOfLines={1} style={styles.title}>
-            {bill.title}
+            {expense.title}
           </AppText>
           <View style={styles.metaRow}>
-            <AppText variant="caption">{formatDate(bill.date)}</AppText>
+            <AppText variant="caption">{formatDate(expense.date)}</AppText>
             <Icon name="people-outline" size={14} color={colors.textSecondary} />
             <AppText variant="caption" numberOfLines={1} style={styles.group}>
-              {bill.groupName}
+              {view.groupName}
             </AppText>
           </View>
         </View>
         <View style={styles.amountCol}>
-          <AppText variant="amount">{formatMoney(bill.totalPaise)}</AppText>
+          <AppText variant="amount">{formatMoney(expense.totalPaise)}</AppText>
           <View style={styles.chipWrap}>
             <Chip
               label={statusLabel}
@@ -51,16 +52,16 @@ export function BillRow({ bill, onPress }: Props) {
         <Icon name="chevron-forward" size={18} />
       </View>
       <View style={styles.bottom}>
-        <AvatarStack names={bill.memberNames} max={4} size={30} />
+        <AvatarStack names={view.memberNames} max={4} size={30} />
         <View style={styles.youCol}>
           <AppText
             variant="caption"
-            color={bill.youOwe ? tones.danger.fg : undefined}
-            style={bill.youOwe ? styles.owe : undefined}
+            color={view.youOwe ? tones.danger.fg : undefined}
+            style={view.youOwe ? styles.owe : undefined}
           >
-            {bill.youLine}
+            {view.youLine}
           </AppText>
-          <AppText variant="small">{bill.subLine}</AppText>
+          {view.subLine ? <AppText variant="small">{view.subLine}</AppText> : null}
         </View>
       </View>
     </ClaySurface>

@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '../../components/EmptyState';
+import { ExpenseRow } from '../../components/ExpenseRow';
 import { GroupPhoto } from '../../components/GroupPhoto';
 import { SectionHeader } from '../../components/SectionHeader';
 import { SettingsRow } from '../../components/SettingsRow';
@@ -19,13 +20,16 @@ import {
   layout,
   radii,
 } from '../../design';
-import { removeGroup, useGroup } from '../../data/store';
+import { appStore, useAppState, useExpenseViews, useGroup } from '../../data/store';
 import { formatMoney } from '../../domain/money';
+import { firstName, groupStats } from '../../domain/views';
 
 export default function GroupDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const group = useGroup(id);
+  const { people, me, expenses } = useAppState();
+  const views = useExpenseViews();
 
   if (!group) {
     return (
@@ -41,6 +45,11 @@ export default function GroupDetailsScreen() {
     );
   }
 
+  const stats = groupStats(group.id, expenses);
+  const groupViews = views.filter((v) => v.expense.groupId === group.id).slice(0, 5);
+  const nameOf = (personId: string): string =>
+    people.find((p) => p.id === personId)?.name ?? 'Unknown';
+
   const invite = async () => {
     try {
       await Share.share({
@@ -51,16 +60,21 @@ export default function GroupDetailsScreen() {
     }
   };
 
-  const leave = () =>
+  const remove = () =>
     confirmAction({
-      title: `Leave ${group.name}?`,
-      message:
-        'You will be removed from this group. Balances will be checked before leaving once settlements are built (Phase 7).',
-      confirmLabel: 'Leave',
+      title: `Delete ${group.name}?`,
+      message: `This permanently deletes the group and its ${stats.billCount} ${
+        stats.billCount === 1 ? 'expense' : 'expenses'
+      } from this device. This cannot be undone.`,
+      confirmLabel: 'Delete',
       destructive: true,
       onConfirm: () => {
-        removeGroup(group.id);
-        router.back();
+        appStore
+          .deleteGroup(group.id)
+          .then(() => router.back())
+          .catch((error: unknown) =>
+            notify('Could not delete group', error instanceof Error ? error.message : undefined),
+          );
       },
     });
 
@@ -93,7 +107,7 @@ export default function GroupDetailsScreen() {
           label="Add Members"
           icon="add"
           onPress={() =>
-            notify('Add members', 'Adding members to an existing group arrives in Phase 3.')
+            notify('Add members', 'Adding members to an existing group arrives in Part C of Phase 3.')
           }
         />
       }
@@ -107,15 +121,17 @@ export default function GroupDetailsScreen() {
         <AppText variant="title" align="center" style={styles.name}>
           {group.name}
         </AppText>
-        <AppText variant="subtitle">{group.memberNames.length} members</AppText>
+        <AppText variant="subtitle">
+          {group.memberIds.length} {group.memberIds.length === 1 ? 'member' : 'members'}
+        </AppText>
       </View>
 
       <StatStrip
         variant="panel"
         items={[
-          { icon: 'people', tone: 'lavender', value: String(group.memberNames.length), label: 'Members' },
-          { icon: 'document-text-outline', tone: 'lavender', value: String(group.billsSplit), label: 'Bills Split' },
-          { icon: 'wallet-outline', tone: 'lavender', value: formatMoney(group.totalSettledPaise), label: 'Total Settled' },
+          { icon: 'people', tone: 'lavender', value: String(group.memberIds.length), label: 'Members' },
+          { icon: 'document-text-outline', tone: 'lavender', value: String(stats.billCount), label: 'Bills Split' },
+          { icon: 'wallet-outline', tone: 'lavender', value: formatMoney(stats.totalPaise), label: 'Total Spent' },
         ]}
       />
 
@@ -126,43 +142,80 @@ export default function GroupDetailsScreen() {
           title="Group Settings"
           subtitle="Edit group name, photo and more"
           onPress={() =>
-            notify('Group settings', 'Renaming a group and changing its photo arrive in Phase 3.')
+            notify('Group settings', 'Renaming a group and changing its photo arrive in Part C of Phase 3.')
           }
         />
         <SettingsRow
           icon="link-outline"
           tone="lavender"
           title="Invite via Link"
-          subtitle="Share an invite to add new members"
+          subtitle="Share an invite message"
           onPress={invite}
         />
         <SettingsRow
-          icon="log-out-outline"
+          icon="trash-outline"
           tone="pink"
-          title="Leave Group"
+          title="Delete Group"
+          subtitle="Removes the group and its expenses from this device"
           destructive
           showDivider={false}
-          onPress={leave}
+          onPress={remove}
         />
       </ClaySurface>
 
-      <View style={styles.members}>
+      <View style={styles.section}>
         <SectionHeader title="Members" />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.memberRow}
         >
-          {group.memberNames.map((member) => (
-            <View key={member} style={styles.member}>
-              <Avatar name={member} size={64} />
+          {group.memberIds.map((memberId) => (
+            <View key={memberId} style={styles.member}>
+              <Avatar name={nameOf(memberId)} size={64} />
               <AppText variant="bodyStrong" style={styles.memberName} numberOfLines={1}>
-                {member}
+                {memberId === me.id ? 'You' : firstName(nameOf(memberId))}
               </AppText>
-              {member === group.adminName ? <Chip label="Admin" tone="lavender" size="sm" /> : null}
+              {memberId === group.adminId ? <Chip label="Admin" tone="lavender" size="sm" /> : null}
             </View>
           ))}
         </ScrollView>
+      </View>
+
+      <View style={styles.section}>
+        <SectionHeader title="Expenses" />
+        {groupViews.length === 0 ? (
+          <EmptyState
+            icon="receipt-outline"
+            title="No expenses yet"
+            message="Add the first expense for this group."
+            actionLabel="Add an expense"
+            onAction={() =>
+              router.push({ pathname: '/expense/new', params: { groupId: group.id } })
+            }
+          />
+        ) : (
+          <View style={styles.list}>
+            {groupViews.map((view) => (
+              <ExpenseRow
+                key={view.expense.id}
+                view={view}
+                onPress={() =>
+                  router.push({ pathname: '/bill/[id]', params: { id: view.expense.id } })
+                }
+              />
+            ))}
+            <ClayButton
+              label="Add Expense"
+              variant="secondary"
+              icon="add"
+              size="md"
+              onPress={() =>
+                router.push({ pathname: '/expense/new', params: { groupId: group.id } })
+              }
+            />
+          </View>
+        )}
       </View>
     </Screen>
   );
@@ -180,8 +233,9 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', marginBottom: 20, gap: 6 },
   name: { marginTop: 10, fontSize: 28, lineHeight: 34 },
   rows: { marginTop: 16, paddingHorizontal: 14, paddingVertical: 2 },
-  members: { marginTop: 22 },
+  section: { marginTop: 22 },
   memberRow: { gap: 18, paddingRight: 8 },
   member: { alignItems: 'center', gap: 6, width: 72 },
   memberName: { fontSize: 14 },
+  list: { gap: 12 },
 });
