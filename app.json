@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "splitmate",
+    "name": "SplitMate",
     "slug": "splitmate",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "splitmate",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FEF8F0",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -29,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#FEF8F0",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
