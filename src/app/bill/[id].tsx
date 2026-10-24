@@ -83,7 +83,7 @@ export default function ExpenseDetailsScreen() {
             icon="create-outline"
             style={styles.footerButton}
             onPress={() =>
-              notify('Edit expense', 'Editing expenses arrives in the next part (B2).')
+              router.push({ pathname: '/expense/edit/[id]', params: { id: expense.id } })
             }
           />
           <ClayButton
