@@ -12,18 +12,53 @@ import {
   ScreenHeader,
   colors,
   radii,
+  type IconName,
+  type ToneName,
 } from '../../design';
 import { SETTINGS_SECTIONS } from '../../data/settingsSections';
 import { useAppState } from '../../data/store';
 import { formatMoney } from '../../domain/money';
+
+type Row = {
+  key: string;
+  icon: IconName;
+  tone: ToneName;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+};
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { expenses, groups, me } = useAppState();
   const totalSplitPaise = expenses.reduce((sum, e) => sum + e.totalPaise, 0);
 
-  const openSection = (key: string) =>
-    router.push({ pathname: '/settings/[section]', params: { section: key } });
+  const openSection = (key: string) => {
+    if (key === 'personal') {
+      router.push('/profile/edit');
+    } else {
+      router.push({ pathname: '/settings/[section]', params: { section: key } });
+    }
+  };
+
+  const rows: Row[] = [
+    {
+      key: 'activity',
+      icon: 'pulse-outline',
+      tone: 'blue',
+      title: 'Activity',
+      subtitle: 'Recent changes across your groups',
+      onPress: () => router.push('/activity'),
+    },
+    ...SETTINGS_SECTIONS.map((section) => ({
+      key: section.key,
+      icon: section.icon,
+      tone: section.tone,
+      title: section.title,
+      subtitle: section.subtitle,
+      onPress: () => openSection(section.key),
+    })),
+  ];
 
   return (
     <Screen
@@ -72,15 +107,15 @@ export default function ProfileScreen() {
       </View>
 
       <ClaySurface variant="raised" radius={radii.xl} style={[styles.block, styles.rows]}>
-        {SETTINGS_SECTIONS.map((section, i) => (
+        {rows.map((row, i) => (
           <SettingsRow
-            key={section.key}
-            icon={section.icon}
-            tone={section.tone}
-            title={section.title}
-            subtitle={section.subtitle}
-            showDivider={i < SETTINGS_SECTIONS.length - 1}
-            onPress={() => openSection(section.key)}
+            key={row.key}
+            icon={row.icon}
+            tone={row.tone}
+            title={row.title}
+            subtitle={row.subtitle}
+            showDivider={i < rows.length - 1}
+            onPress={row.onPress}
           />
         ))}
       </ClaySurface>

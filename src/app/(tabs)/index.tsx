@@ -98,13 +98,8 @@ export default function HomeScreen() {
         <ClaySurface
           variant="raised"
           radius={26}
-          onPress={() =>
-            notify(
-              'You’re all caught up',
-              'Notifications for settlements and reminders arrive in a later phase.',
-            )
-          }
-          accessibilityLabel="Notifications"
+          onPress={() => router.push('/activity')}
+          accessibilityLabel="Activity"
           style={styles.bell}
         >
           <Icon name="notifications-outline" size={24} />

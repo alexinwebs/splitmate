@@ -107,7 +107,7 @@ export default function GroupDetailsScreen() {
           label="Add Members"
           icon="add"
           onPress={() =>
-            notify('Add members', 'Adding members to an existing group arrives in Part C of Phase 3.')
+            router.push({ pathname: '/group/settings/[id]', params: { id: group.id } })
           }
         />
       }
@@ -142,8 +142,15 @@ export default function GroupDetailsScreen() {
           title="Group Settings"
           subtitle="Edit group name, photo and more"
           onPress={() =>
-            notify('Group settings', 'Renaming a group and changing its photo arrive in Part C of Phase 3.')
+            router.push({ pathname: '/group/settings/[id]', params: { id: group.id } })
           }
+        />
+        <SettingsRow
+          icon="pulse-outline"
+          tone="blue"
+          title="Activity"
+          subtitle="Changes made in this group"
+          onPress={() => router.push({ pathname: '/activity', params: { groupId: group.id } })}
         />
         <SettingsRow
           icon="link-outline"

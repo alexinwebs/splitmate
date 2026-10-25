@@ -272,6 +272,160 @@ export function createAppStore(deps: StoreDeps) {
     });
   }
 
+  function clip(text: string, max = 200): string {
+    return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
+  }
+
+  async function renameGroup(id: string, name: string): Promise<Group> {
+    assertReady();
+    const group = state.groups.find((g) => g.id === id);
+    if (!group) throw new Error('This group no longer exists.');
+    const trimmed = name.trim();
+    if (trimmed.length === 0) throw new Error('Group name is required.');
+    if (trimmed.length > 40) throw new Error('Keep the group name under 40 characters.');
+    if (trimmed === group.name) return group;
+    const updated: Group = { ...group, name: trimmed };
+    const event: ActivityEvent = {
+      id: newId('a'),
+      groupId: id,
+      type: 'group_renamed',
+      summary: clip(`Renamed "${group.name}" to "${trimmed}"`),
+      at: timestamp(),
+    };
+    await repo.groups.put(updated);
+    await repo.activity.put(event);
+    set({
+      groups: state.groups.map((g) => (g.id === id ? updated : g)),
+      activity: [event, ...state.activity],
+    });
+    return updated;
+  }
+
+  /** Adds people to an existing group. Names already in the group are ignored. */
+  async function addMembers(groupId: string, memberNames: readonly string[]): Promise<Group> {
+    assertReady();
+    const group = state.groups.find((g) => g.id === groupId);
+    if (!group) throw new Error('This group no longer exists.');
+
+    const current = new Set(
+      state.people.filter((p) => group.memberIds.includes(p.id)).map((p) => p.name.toLowerCase()),
+    );
+    const cleaned: string[] = [];
+    for (const raw of memberNames) {
+      const person = raw.trim();
+      const key = person.toLowerCase();
+      if (person.length === 0 || current.has(key)) continue;
+      current.add(key);
+      cleaned.push(person);
+    }
+    if (cleaned.length === 0) {
+      throw new Error('Add at least one person who is not already in the group.');
+    }
+    if (group.memberIds.length + cleaned.length > MAX_GROUP_MEMBERS) {
+      throw new Error(`A group can have at most ${MAX_GROUP_MEMBERS} members.`);
+    }
+
+    const newPeople: Person[] = [];
+    const addedIds: string[] = [];
+    for (const person of cleaned) {
+      const existing = state.people.find(
+        (p) => p.id !== ME_ID && p.name.toLowerCase() === person.toLowerCase(),
+      );
+      if (existing) {
+        addedIds.push(existing.id);
+      } else {
+        const created: Person = { id: newId('p'), name: person };
+        newPeople.push(created);
+        addedIds.push(created.id);
+      }
+    }
+
+    const updated: Group = { ...group, memberIds: [...group.memberIds, ...addedIds] };
+    const event: ActivityEvent = {
+      id: newId('a'),
+      groupId,
+      type: 'member_added',
+      summary: clip(`Added ${cleaned.join(', ')} to "${group.name}"`),
+      at: timestamp(),
+    };
+    for (const person of newPeople) await repo.people.put(person);
+    await repo.groups.put(updated);
+    await repo.activity.put(event);
+    set({
+      people: [...state.people, ...newPeople],
+      groups: state.groups.map((g) => (g.id === groupId ? updated : g)),
+      activity: [event, ...state.activity],
+    });
+    return updated;
+  }
+
+  /**
+   * Removes someone from a group. Refused while they are part of any expense in
+   * the group, so past splits and balances are never silently rewritten.
+   */
+  async function removeMember(groupId: string, personId: string): Promise<Group> {
+    assertReady();
+    const group = state.groups.find((g) => g.id === groupId);
+    if (!group) throw new Error('This group no longer exists.');
+    if (personId === ME_ID) {
+      throw new Error('You can’t remove yourself. Delete the group instead.');
+    }
+    if (!group.memberIds.includes(personId)) throw new Error('That person is not in this group.');
+    if (group.memberIds.length <= 2) throw new Error('A group needs at least two people.');
+
+    const person = state.people.find((p) => p.id === personId);
+    const involved = state.expenses.filter(
+      (e) =>
+        e.groupId === groupId &&
+        (e.payers.some((p) => p.memberId === personId) ||
+          e.shares.some((s) => s.memberId === personId)),
+    );
+    if (involved.length > 0) {
+      const name = person?.name ?? 'This person';
+      const many = involved.length > 1;
+      throw new Error(
+        `${name} is part of ${involved.length} ${many ? 'expenses' : 'expense'} in this group. Delete or edit ${many ? 'them' : 'it'} first.`,
+      );
+    }
+
+    const updated: Group = {
+      ...group,
+      memberIds: group.memberIds.filter((id) => id !== personId),
+    };
+    const event: ActivityEvent = {
+      id: newId('a'),
+      groupId,
+      type: 'member_removed',
+      summary: clip(`Removed ${person?.name ?? 'a member'} from "${group.name}"`),
+      at: timestamp(),
+    };
+    await repo.groups.put(updated);
+    await repo.activity.put(event);
+    set({
+      groups: state.groups.map((g) => (g.id === groupId ? updated : g)),
+      activity: [event, ...state.activity],
+    });
+    return updated;
+  }
+
+  async function renameMe(name: string): Promise<Person> {
+    assertReady();
+    const trimmed = name.trim();
+    if (trimmed.length === 0) throw new Error('Enter your name.');
+    if (trimmed.length > 60) throw new Error('Keep your name under 60 characters.');
+    const clash = state.people.find(
+      (p) => p.id !== ME_ID && p.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (clash) throw new Error('Someone in your contacts already has that name.');
+    const updated: Person = { ...state.me, name: trimmed };
+    await repo.people.put(updated);
+    set({
+      me: updated,
+      people: state.people.map((p) => (p.id === ME_ID ? updated : p)),
+    });
+    return updated;
+  }
+
   async function resetAllData(): Promise<void> {
     await repo.clearAll();
     state = initialState();
@@ -292,6 +446,10 @@ export function createAppStore(deps: StoreDeps) {
     addExpense,
     updateExpense,
     deleteExpense,
+    renameGroup,
+    addMembers,
+    removeMember,
+    renameMe,
     resetAllData,
   };
 }

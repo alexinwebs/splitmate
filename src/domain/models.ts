@@ -96,7 +96,15 @@ export const ActivitySchema = z.object({
   id: idSchema,
   groupId: idSchema,
   expenseId: idSchema.optional(),
-  type: z.enum(['group_created', 'expense_created', 'expense_updated', 'expense_deleted']),
+  type: z.enum([
+    'group_created',
+    'group_renamed',
+    'member_added',
+    'member_removed',
+    'expense_created',
+    'expense_updated',
+    'expense_deleted',
+  ]),
   summary: z.string().max(200),
   at: timestampSchema,
 });
