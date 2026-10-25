@@ -162,7 +162,7 @@ export default function HomeScreen() {
         {groups.length === 0 ? (
           <EmptyState
             icon="people-outline"
-            title="Welcome to SplitMate"
+            title="Welcome to Splitzoa"
             message="Create a group to start splitting bills, or load sample data to explore the app."
             actionLabel="Create a group"
             onAction={() => router.push('/group/new')}

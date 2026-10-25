@@ -53,7 +53,7 @@ export default function GroupDetailsScreen() {
   const invite = async () => {
     try {
       await Share.share({
-        message: `Join “${group.name}” on SplitMate and split bills together.`,
+        message: `Join “${group.name}” on Splitzoa and split bills together.`,
       });
     } catch {
       notify('Could not open sharing', 'Sharing is not available on this device.');

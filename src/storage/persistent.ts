@@ -9,7 +9,7 @@ export function createPersistentStorage(): DocumentStorage {
   const open = (): Promise<SQLite.SQLiteDatabase> => {
     if (!opening) {
       opening = (async () => {
-        const db = await SQLite.openDatabaseAsync('splitmate.db');
+        const db = await SQLite.openDatabaseAsync('splitzoa.db');
         await db.execAsync(
           'PRAGMA journal_mode = WAL;' +
             'CREATE TABLE IF NOT EXISTS documents (' +

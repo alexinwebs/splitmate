@@ -29,7 +29,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     tone: 'pink',
     plannedPhase: 'Phase 7',
     description:
-      'Save your UPI ID and payment notes to share with friends when settling up. SplitMate records settlements; it does not move money.',
+      'Save your UPI ID and payment notes to share with friends when settling up. Splitzoa records settlements; it does not move money.',
   },
   {
     key: 'split',

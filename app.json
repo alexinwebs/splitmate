@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "SplitMate",
-    "slug": "splitmate",
+    "name": "Splitzoa",
+    "slug": "splitzoa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "splitmate",
+    "scheme": "splitzoa",
     "userInterfaceStyle": "light",
     "backgroundColor": "#FEF8F0",
     "ios": {
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.splitmate"
+      "package": "com.alexinwebs.splitzoa"
     },
     "web": {
       "output": "static",

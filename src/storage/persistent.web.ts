@@ -9,7 +9,7 @@ type WebStorage = {
   readonly length: number;
 };
 
-const PREFIX = 'splitmate:v1:';
+const PREFIX = 'splitzoa:v1:';
 
 function getLocalStorage(): WebStorage | null {
   try {
